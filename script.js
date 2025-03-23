@@ -13,6 +13,13 @@ document.addEventListener("DOMContentLoaded", () => {
     // 🎼 純正律の周波数マッピング
     const baseFreq = 264;
     const justIntonation = {
+        "KeyZ": [-1, 0, 0],  // C3
+        "KeyX": [-4, 2, 0], // D3
+        "KeyC": [-3, 0, 1], // E3
+        "KeyV": [1, -1, 0], // F3
+        "KeyB": [-2, 1, 0], // G3
+        "KeyN": [-1, -1, 1], // A3
+        "KeyM": [-4, 1, 1], // B3
         "KeyA": [0, 0, 0],  // C4
         "KeyS": [-3, 2, 0], // D4
         "KeyD": [-2, 0, 1], // E4
