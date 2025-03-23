@@ -1,0 +1,40 @@
+body {
+    text-align: center;
+    font-family: Arial, sans-serif;
+    background-color: #222;
+    color: white;
+}
+
+h1 {
+    margin-bottom: 20px;
+}
+
+#keyboard {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+.key {
+    width: 60px;
+    height: 120px;
+    font-size: 20px;
+    font-weight: bold;
+    border: 2px solid white;
+    background: #444;
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.1s;
+}
+
+.key.active {
+    background: yellow;
+    color: black;
+}
+
+#ratio-display {
+    margin-top: 20px;
+    font-size: 24px;
+    font-weight: bold;
+}
