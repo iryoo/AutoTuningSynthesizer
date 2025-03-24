@@ -84,14 +84,16 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
         const lcm = lcm2(den);
+        const gcd = gcd2(num);
         for(let i = 0; i < num.length; i++) {
-            ratios[i] = lcm * num[i] / den[i];
+            ratios[i] = (lcm * num[i]) / (gcd * den[i]);
         }
-        ratioDisplay.innerText = `${ratios.join(" : ")}`;
+        ratioDisplay.innerText = `${ratios.join(" : ")} (${lcm2(ratios)})`;
     }
 
     const comparePositions = (a, b) => calcRatio(a) - calcRatio(b);
     const lcm2 = arr => arr.reduce((a, b) => lcm(a, b));
     const lcm = (a, b) => (a * b) / gcd(a, b);
+    const gcd2 = arr => arr.reduce((a, b) => gcd(a, b));
     const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
 });
