@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
     // 🎵 Tone.js のセットアップ
     const synth = new Tone.PolySynth(Tone.Synth).toDestination();
-    synth.set({ voice: Tone.Synth, oscillator: { type: "sawtooth" } });
+    synth.set({ voice: Tone.Synth, oscillator: { type: "square" } });
 
     const dimensionRatio = [2, 3, 5];
 
@@ -65,17 +65,17 @@ document.addEventListener("DOMContentLoaded", () => {
     // 📊 周波数比を更新する関数
     function updateRatioDisplay() {
         let positions = Object.values(activeKeys);
-
         if (positions.length <= 1) {
             ratioDisplay.innerText = "";
             return;
         }
+        let sortedPositions = positions.toSorted(comparePositions);
         
         let ratios = [];
         let num = [];
         let den = [];
 
-        for(let pos of positions) {
+        for(let pos of sortedPositions) {
             num.push(1);
             den.push(1);
             for(let i = 0; i < pos.length; i++) {
@@ -90,6 +90,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ratioDisplay.innerText = `${ratios.join(" : ")}`;
     }
 
+    const comparePositions = (a, b) => calcRatio(a) - calcRatio(b);
     const lcm2 = arr => arr.reduce((a, b) => lcm(a, b));
     const lcm = (a, b) => (a * b) / gcd(a, b);
     const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
