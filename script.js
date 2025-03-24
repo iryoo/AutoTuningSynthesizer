@@ -1,48 +1,77 @@
 document.addEventListener("DOMContentLoaded", () => {
-    // 🎵 Tone.js のセットアップ
+    // Tone.js のセットアップ
     const synth = new Tone.PolySynth(Tone.Synth).toDestination();
     synth.set({ voice: Tone.Synth, oscillator: { type: "square" } });
 
+    // 周波数比を計算する関数
     const dimensionRatio = [2, 3, 5];
-
-    // 🔢 周波数比を計算する関数
-    function calcRatio(pos) {
-        return Math.pow(dimensionRatio[0], pos[0]) * Math.pow(dimensionRatio[1], pos[1]) * Math.pow(dimensionRatio[2], pos[2]);
+    const calcRatio = pos => {
+        let ratio = 1;
+        for (let i = 0; i < dimensionRatio.length; i++) {
+            ratio *= Math.pow(dimensionRatio[i], pos[i]);
+        }
+        return ratio;
     }
 
-    // 🎼 純正律の周波数マッピング
-    const baseFreq = 264;
-    const justIntonation = {
-        "KeyZ": [-1, 0, 0],  // C3
-        "KeyX": [-4, 2, 0], // D3
-        "KeyC": [-3, 0, 1], // E3
-        "KeyV": [1, -1, 0], // F3
-        "KeyB": [-2, 1, 0], // G3
-        "KeyN": [-1, -1, 1], // A3
-        "KeyM": [-4, 1, 1], // B3
-        "KeyA": [0, 0, 0],  // C4
-        "KeyS": [-3, 2, 0], // D4
-        "KeyD": [-2, 0, 1], // E4
-        "KeyF": [2, -1, 0], // F4
-        "KeyG": [-1, 1, 0], // G4
-        "KeyH": [0, -1, 1], // A4
-        "KeyJ": [-3, 1, 1], // B4
-        "KeyK": [1, 0, 0]   // C5
+    // 純正律のマッピング
+    const baseFreq = 264; //C4
+    const splitNoteAndOctave = input => {
+        const match = input.match(/^([^\d]+)(\d+)$/);
+        if (match) {
+            return [match[1], parseInt(match[2], 10)];
+        }
+        return [input, null]; // 数字がない場合の処理
+    }
+    const justIntonation = input => {
+        const note = splitNoteAndOctave(input)[0];
+        const octave = splitNoteAndOctave(input)[1];
+
+        const baseOctave = octave - 4;
+        switch (note) {
+            case "C":
+                return [baseOctave, 0, 0];
+            case "D":
+                return [baseOctave - 3, 2, 0];
+            case "E":
+                return [baseOctave - 2, 0, 1];
+            case "F":
+                return [baseOctave + 2, -1, 0];
+            case "G":
+                return [baseOctave - 1, 1, 0];
+            case "A":
+                return [baseOctave, -1, 1];
+            case "B":
+                return [baseOctave - 3, 1, 1];
+        }
+    }
+    const keyMap = {
+        "KeyA": justIntonation("C4"),
+        "KeyS": justIntonation("D4"),
+        "KeyD": justIntonation("E4"),
+        "KeyF": justIntonation("F4"),
+        "KeyG": justIntonation("G4"),
+        "KeyH": justIntonation("A4"),
+        "KeyJ": justIntonation("B4"),
+        "KeyK": justIntonation("C5"),
+        "KeyL": justIntonation("D5"),
+        "Semicolon": justIntonation("E5"),
+        "Quote": justIntonation("F5"),
+        "Backslash": justIntonation("G5"),
     };
 
-    // 🖥 UI 要素
+    // UI 要素
     const ratioDisplay = document.getElementById("ratio-display");
     const keys = document.querySelectorAll(".key");
 
-    // 🎹 現在押されているキーを記録
+    // 現在押されているキーを記録
     let activeKeys = {};
 
-    // 🎼 キーを押したときの処理
+    // キーを押したときの処理
     document.addEventListener("keydown", async (event) => {
-        if (justIntonation[event.code] && !activeKeys[event.code]) {
+        if (keyMap[event.code] && !activeKeys[event.code]) {
             await Tone.start();
-            synth.triggerAttack(baseFreq * calcRatio(justIntonation[event.code]));
-            activeKeys[event.code] = justIntonation[event.code];
+            synth.triggerAttack(baseFreq * calcRatio(keyMap[event.code]));
+            activeKeys[event.code] = keyMap[event.code];
 
             // UI 更新
             document.querySelector(`.key[data-key="${event.code}"]`)?.classList.add("active");
@@ -50,10 +79,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // 🎵 キーを離したときの処理
+    // キーを離したときの処理
     document.addEventListener("keyup", (event) => {
         if (activeKeys[event.code]) {
-            synth.triggerRelease(baseFreq * calcRatio(justIntonation[event.code]));
+            synth.triggerRelease(baseFreq * calcRatio(keyMap[event.code]));
             delete activeKeys[event.code];
 
             // UI 更新
@@ -62,7 +91,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // 📊 周波数比を更新する関数
+    // 周波数比を更新する関数
     function updateRatioDisplay() {
         let positions = Object.values(activeKeys);
         if (positions.length <= 1) {
@@ -70,22 +99,22 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
         let sortedPositions = positions.toSorted(comparePositions);
-        
+
         let ratios = [];
         let num = [];
         let den = [];
 
-        for(let pos of sortedPositions) {
+        for (let pos of sortedPositions) {
             num.push(1);
             den.push(1);
-            for(let i = 0; i < pos.length; i++) {
-                if(pos[i] > 0) num[num.length - 1] *= Math.pow(dimensionRatio[i], pos[i]);
-                else if(pos[i] < 0)  den[den.length - 1] *= Math.pow(dimensionRatio[i], -pos[i]);
+            for (let i = 0; i < pos.length; i++) {
+                if (pos[i] > 0) num[num.length - 1] *= Math.pow(dimensionRatio[i], pos[i]);
+                else if (pos[i] < 0) den[den.length - 1] *= Math.pow(dimensionRatio[i], -pos[i]);
             }
         }
         const lcm = lcm2(den);
         const gcd = gcd2(num);
-        for(let i = 0; i < num.length; i++) {
+        for (let i = 0; i < num.length; i++) {
             ratios[i] = (lcm * num[i]) / (gcd * den[i]);
         }
         ratioDisplay.innerText = `${ratios.join(" : ")} (${lcm2(ratios)})`;
