@@ -1,40 +1,96 @@
 body {
-    text-align: center;
     font-family: Arial, sans-serif;
-    background-color: #222;
-    color: white;
+    background-color: #f4f4f4;
+    padding: 20px;
 }
 
-h1 {
+.control-container {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    max-width: 300px;
+    margin: auto;
     margin-bottom: 20px;
 }
 
-#keyboard {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-}
-
-.key {
-    width: 80px;
-    height: 80px;
-    font-size: 20px;
+label {
     font-weight: bold;
-    border: 2px solid white;
-    background: #444;
-    color: white;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: 0.1s;
+    display: block;
+    margin-top: 10px;
 }
 
-.key.active {
-    background: yellow;
-    color: black;
+input[type="range"] {
+    width: 100%;
+    margin-top: 5px;
+}
+
+input[type="text"] {
+    width: calc(100% - 10px);
+    padding: 5px;
+    margin-top: 5px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+select {
+    width: 100%;
+    padding: 5px;
+    margin-top: 5px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background: white;
+}
+
+h1 {
+    text-align: center;
+    font-size: 2em;
+    margin-top: 20px;
+    margin-bottom: 20px;
 }
 
 #ratio-display {
+    text-align: center;
     margin-top: 20px;
     font-size: 24px;
     font-weight: bold;
+}
+
+#piano {
+    display: flex;
+    justify-content: center;
+    margin-top: 50px;
+}
+
+.white-key {
+    width: 60px;
+    height: 180px;
+    font-size: 20px;
+    font-weight: bold;
+    line-height: 290px;
+    border: 2px solid black;
+    background: white;
+    margin-left: -2px;
+}
+
+.white-key.active {
+    background: #ddd;
+}
+
+.black-key {
+    width: 40px;
+    height: 120px;
+    font-size: 16px;
+    font-weight: bold;
+    line-height: 190px;
+    color: white;
+    background: black;
+    border: 0;
+    position: relative;
+    margin-left: -20px;
+    margin-right: -20px;
+}
+
+.black-key.active {
+    background: #444;
 }

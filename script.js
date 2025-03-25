@@ -99,7 +99,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // UI 要素
     const ratioDisplay = document.getElementById("ratio-display");
-    const keys = document.querySelectorAll(".key");
 
     // 現在押されているキーを記録
     let activeKeys = {};
@@ -111,9 +110,9 @@ document.addEventListener("DOMContentLoaded", () => {
             synth.triggerAttack(baseFreq * calcRatio(keyMap[event.code]));
             activeKeys[event.code] = keyMap[event.code];
 
-
             // UI 更新
-            document.querySelector(`.key[data-key="${event.code}"]`)?.classList.add("active");
+            document.querySelector(`.white-key[data-key="${event.code}"]`)?.classList.add("active");
+            document.querySelector(`.black-key[data-key="${event.code}"]`)?.classList.add("active");
             updateRatioDisplay();
         }
     });
@@ -125,7 +124,8 @@ document.addEventListener("DOMContentLoaded", () => {
             delete activeKeys[event.code];
 
             // UI 更新
-            document.querySelector(`.key[data-key="${event.code}"]`)?.classList.remove("active");
+            document.querySelector(`.white-key[data-key="${event.code}"]`)?.classList.remove("active");
+            document.querySelector(`.black-key[data-key="${event.code}"]`)?.classList.remove("active");
             updateRatioDisplay();
         }
     });

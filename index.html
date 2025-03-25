@@ -1,44 +1,58 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>純正律シンセサイザー</title>
+    <title>Frequency Ratio Checker for Just Intonation</title>
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
-    <h1>周波数比と最小公倍数が確認できる純正律シンセサイザー</h1>
+    <h1>Frequency Ratio Checker for Just Intonation</h1>
+    <div class="control-container">
+        <label for="volumeSlider">Volume</label>
+        <input type="range" id="volumeSlider" min="-60" max="0" step="1" value="-12">
 
-    <label for="volumeSlider">Volume</label>
-    <input type="range" id="volumeSlider" min="-60" max="0" step="1" value="-12">
+        <label for="baseFreqInput">Base Frequency</label>
+        <input type="text" value="264" id="baseFreqInput">
 
-    <label for="baseFreqInput">Base Frequency</label>
-    <input type="text" value="264" id="baseFreqInput">
+        <label for="waveformSelect">Waveform</label>
+        <select id="waveformSelect">
+            <option value="sine">sine</option>
+            <option value="square">square</option>
+            <option value="sawtooth">sawtooth</option>
+        </select>
+    </div>
 
-    <label for="waveformSelect">Waveform</label>
-    <select id="waveformSelect">
-        <option value="sawtooth">sawtooth</option>
-        <option value="square">square</option>
-    </select>
-    
-    <div id="keyboard">
-        <button class="key" data-key="KeyA">A</button>
-        <button class="key" data-key="KeyS">S</button>
-        <button class="key" data-key="KeyD">D</button>
-        <button class="key" data-key="KeyF">F</button>
-        <button class="key" data-key="KeyG">G</button>
-        <button class="key" data-key="KeyH">H</button>
-        <button class="key" data-key="KeyJ">J</button>
-        <button class="key" data-key="KeyK">K</button>
-        <button class="key" data-key="KeyL">L</button>
-        <button class="key" data-key="Semicolon">;</button>
-        <button class="key" data-key="Quote">:</button>
-        <button class="key" data-key="Backslash">]</button>
+    <div id="piano">
+        <button class="white-key" data-key="KeyA">A</button>
+        <button class="black-key" data-key="KeyW">W</button>
+        <button class="white-key" data-key="KeyS">S</button>
+        <button class="black-key" data-key="KeyE">E</button>
+        <button class="white-key" data-key="KeyD">D</button>
+        <button class="white-key" data-key="KeyF">F</button>
+        <button class="black-key" data-key="KeyT">T</button>
+        <button class="white-key" data-key="KeyG">G</button>
+        <button class="black-key" data-key="KeyY">Y</button>
+        <button class="white-key" data-key="KeyH">H</button>
+        <button class="black-key" data-key="KeyU">U</button>
+        <button class="white-key" data-key="KeyJ">J</button>
+        <button class="white-key" data-key="KeyK">K</button>
+        <button class="black-key" data-key="KeyO">O</button>
+        <button class="white-key" data-key="KeyL">L</button>
+        <button class="black-key" data-key="KeyP">P</button>
+        <button class="white-key" data-key="Semicolon">;</button>
+        <button class="white-key" data-key="Quote">:</button>
+        <button class="black-key" data-key="BracketRight">[</button>
+        <button class="white-key" data-key="Backslash">]</button>
+        
     </div>
 
     <div id="ratio-display"></div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    
+    <script src="https://unpkg.com/tone"></script>
     <script src="script.js"></script>
 </body>
+
 </html>
