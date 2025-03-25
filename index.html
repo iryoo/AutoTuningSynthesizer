@@ -8,6 +8,19 @@
 </head>
 <body>
     <h1>周波数比と最小公倍数が確認できる純正律シンセサイザー</h1>
+
+    <label for="volumeSlider">Volume</label>
+    <input type="range" id="volumeSlider" min="-60" max="0" step="1" value="-12">
+
+    <label for="baseFreqInput">Base Frequency</label>
+    <input type="text" value="264" id="baseFreqInput">
+
+    <label for="waveformSelect">Waveform</label>
+    <select id="waveformSelect">
+        <option value="sawtooth">sawtooth</option>
+        <option value="square">square</option>
+    </select>
+    
     <div id="keyboard">
         <button class="key" data-key="KeyA">A</button>
         <button class="key" data-key="KeyS">S</button>

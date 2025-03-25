@@ -1,7 +1,28 @@
 document.addEventListener("DOMContentLoaded", () => {
     // Tone.js のセットアップ
     const synth = new Tone.PolySynth(Tone.Synth).toDestination();
-    synth.set({ voice: Tone.Synth, oscillator: { type: "square" } });
+    synth.set({ voice: Tone.Synth });
+
+    // 音量をセット
+    const volumeSlider = document.getElementById("volumeSlider");
+    synth.volume.value = parseFloat(volumeSlider.value);
+    volumeSlider.addEventListener("input", (event) => {
+        synth.volume.value = parseFloat(event.target.value);
+    });
+
+    // 波形のセレクト
+    const waveformSelect = document.getElementById("waveformSelect");
+    synth.set({ oscillator: { type: waveformSelect.value } });
+    waveformSelect.addEventListener("input", (event) => {
+        synth.set({ oscillator: { type: event.target.value } });
+    });
+
+    // 基準となる音の周波数をセット
+    const baseFreqInput = document.getElementById("baseFreqInput");
+    let baseFreq = baseFreqInput.value;
+    baseFreqInput.addEventListener("input", (event) => {
+        baseFreq = event.target.value;
+    });
 
     // 周波数比を計算する関数
     const dimensionRatio = [2, 3, 5];
@@ -14,7 +35,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // 純正律のマッピング
-    const baseFreq = 264; //C4
     const splitNoteAndOctave = input => {
         const match = input.match(/^([^\d]+)(\d+)$/);
         if (match) {
@@ -25,21 +45,30 @@ document.addEventListener("DOMContentLoaded", () => {
     const justIntonation = input => {
         const note = splitNoteAndOctave(input)[0];
         const octave = splitNoteAndOctave(input)[1];
-
         const baseOctave = octave - 4;
         switch (note) {
             case "C":
                 return [baseOctave, 0, 0];
+            case "C#":
+                return [baseOctave + 4, -1, -1];
             case "D":
                 return [baseOctave - 3, 2, 0];
+            case "D#":
+                return [baseOctave + 1, 1, -1];
             case "E":
                 return [baseOctave - 2, 0, 1];
             case "F":
                 return [baseOctave + 2, -1, 0];
+            case "F#":
+                return [baseOctave + 6, -2, -1];
             case "G":
                 return [baseOctave - 1, 1, 0];
+            case "G#":
+                return [baseOctave + 3, 0, -1];
             case "A":
                 return [baseOctave, -1, 1];
+            case "A#":
+                return [baseOctave + 4, -2, 0];
             case "B":
                 return [baseOctave - 3, 1, 1];
         }
@@ -57,6 +86,15 @@ document.addEventListener("DOMContentLoaded", () => {
         "Semicolon": justIntonation("E5"),
         "Quote": justIntonation("F5"),
         "Backslash": justIntonation("G5"),
+
+        "KeyW": justIntonation("C#4"),
+        "KeyE": justIntonation("D#4"),
+        "KeyT": justIntonation("F#4"),
+        "KeyY": justIntonation("G#4"),
+        "KeyU": justIntonation("A#4"),
+        "KeyO": justIntonation("C#5"),
+        "KeyP": justIntonation("D#5"),
+        "BracketRight": justIntonation("F#5"),
     };
 
     // UI 要素
@@ -72,6 +110,7 @@ document.addEventListener("DOMContentLoaded", () => {
             await Tone.start();
             synth.triggerAttack(baseFreq * calcRatio(keyMap[event.code]));
             activeKeys[event.code] = keyMap[event.code];
+
 
             // UI 更新
             document.querySelector(`.key[data-key="${event.code}"]`)?.classList.add("active");
