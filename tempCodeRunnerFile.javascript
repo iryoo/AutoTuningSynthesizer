@@ -18,21 +18,13 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // 基準となる音の周波数をセット
-    let baseMidiNote = 60; // MIDI note number for base frequency (C4)
-    let baseFreq = Tone.Frequency(baseMidiNote, "midi").toFrequency();
+    const baseMidiNote = 60; // MIDI note number for base frequency (C4)
+    const baseFreq = Tone.Frequency(baseMidiNote, "midi").toFrequency();
     const baseFreqInput = document.getElementById("baseFreqInput");
-    const baseMidiNoteInput = document.getElementById("baseMidiNoteInput");
     baseFreqInput.value = baseFreq;
-    baseMidiNoteInput.value = baseMidiNote;
-
     baseFreqInput.addEventListener("input", (event) => {
-        baseFreq = parseFloat(event.target.value);
-        updateFrequencyDisplay();
-    });
-
-    baseMidiNoteInput.addEventListener("input", (event) => {
-        baseMidiNote = parseInt(event.target.value);
-        updateFrequencyDisplay();
+        // baseFreq = parseFloat(event.target.value);
+        // 基準周波数を変更する機能は削除
     });
 
     // 音律の選択
@@ -43,7 +35,7 @@ document.addEventListener("DOMContentLoaded", () => {
         currentTuning = event.target.value;
         activeKeys = {};
         updateRatioDisplay();
-        updateFrequencyDisplay(); // 音律変更時に周波数表示を更新
+        updateAllFrequencies();
     });
 
     // 周波数比を計算する関数
@@ -58,8 +50,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 純正律の周波数比を計算する関数
     const calcJustIntonationRatio = midiNote => {
-        const baseOctave = Math.floor((midiNote - baseMidiNote) / 12);
-        const noteOffset = (midiNote - baseMidiNote + 1200) % 12;
+        const baseOctave = Math.floor((midiNote - 60) / 12);
+        const noteOffset = midiNote % 12;
         switch (noteOffset) {
             case 0: // C
                 return [baseOctave, 0, 0]; // 1
@@ -123,7 +115,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // UI 要素
     const ratioDisplay = document.getElementById("ratio-display");
-    const frequencyDisplay = document.getElementById("frequency-display");
 
     // 現在押されているキーを記録
     let activeKeys = {};
@@ -147,7 +138,7 @@ document.addEventListener("DOMContentLoaded", () => {
             document.querySelector(`.white-key[data-key="${event.code}"]`)?.classList.add("active");
             document.querySelector(`.black-key[data-key="${event.code}"]`)?.classList.add("active");
             updateRatioDisplay();
-            updateFrequencyDisplay();
+            updateKeyFrequency(event.code);
         }
     });
 
@@ -169,7 +160,7 @@ document.addEventListener("DOMContentLoaded", () => {
             document.querySelector(`.white-key[data-key="${event.code}"]`)?.classList.remove("active");
             document.querySelector(`.black-key[data-key="${event.code}"]`)?.classList.remove("active");
             updateRatioDisplay();
-            updateFrequencyDisplay();
+            updateKeyFrequency(event.code);
         }
     });
 
@@ -206,10 +197,10 @@ document.addEventListener("DOMContentLoaded", () => {
         ratioDisplay.innerText = `${ratios.join(" : ")} (${lcm2(ratios)})`;
     }
 
-    // 周波数を更新する関数
-    function updateFrequencyDisplay() {
-        let frequencies = [];
-        for (const keyCode in activeKeys) {
+    // キーの周波数を更新する関数
+    function updateKeyFrequency(keyCode) {
+        const key = document.querySelector(`[data-key="${keyCode}"]`);
+        if (key) {
             let ratio;
             if (currentTuning === "just") {
                 ratio = calcRatio(calcJustIntonationRatio(keyMap[keyCode]));
@@ -217,9 +208,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 ratio = calcEqualTemperamentRatio(keyMap[keyCode]);
             }
             const frequency = Math.round(baseFreq * ratio);
-            frequencies.push(frequency);
+            key.querySelector(".frequency").innerText = frequency + " Hz";
         }
-        frequencyDisplay.innerText = frequencies.length > 0 ? frequencies.join(", ") + " Hz" : "";
+    }
+
+    // すべてのキーの周波数を更新する関数
+    function updateAllFrequencies() {
+        for (const keyCode in keyMap) {
+            updateKeyFrequency(keyCode);
+        }
     }
 
     const comparePositions = (a, b) => calcRatio(a) - calcRatio(b);
@@ -228,6 +225,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const gcd2 = arr => arr.reduce((a, b) => gcd(a, b));
     const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
 
-    // 初期化時に周波数を更新
-    updateFrequencyDisplay();
+    // 初期化時にすべての周波数を更新
+    updateAllFrequencies();
 });

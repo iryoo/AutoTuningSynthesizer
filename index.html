@@ -9,13 +9,16 @@
 </head>
 
 <body>
-    <h1>Auto Tuning Synthesizer (v1.0.1)</h1>
+    <h1>Auto Tuning Synthesizer (v1.0.2)</h1>
     <div class="control-container">
         <label for="volumeSlider">Volume</label>
         <input type="range" id="volumeSlider" min="-60" max="0" step="1" value="-12">
 
-        <label for="baseFreqInput">Base Frequency</label>
+        <label for="baseFreqInput">Base Frequency (Hz)</label>
         <input type="number" value="261.63" id="baseFreqInput">
+
+        <label for="baseMidiNoteInput">MIDI note for base frequency</label>
+        <input type="number" value="60" id="baseMidiNoteInput">
 
         <label for="waveformSelect">Waveform</label>
         <select id="waveformSelect">
@@ -26,8 +29,8 @@
 
         <label for="tuningSelect">Temperament</label>
         <select id="tuningSelect">
-          <option value="just">Just Intonation</option>
-          <option value="equal">Equal Temperament</option>
+            <option value="just">Just Intonation</option>
+            <option value="equal">Equal Temperament</option>
         </select>
     </div>
 
@@ -52,12 +55,12 @@
         <button class="white-key" data-key="Quote">:</button>
         <button class="black-key" data-key="BracketRight">[</button>
         <button class="white-key" data-key="Backslash">]</button>
-        
+
     </div>
 
     <div id="ratio-display"></div>
     <div id="frequency-display"></div>
-    
+
     <script src="https://unpkg.com/tone"></script>
     <script src="script.js"></script>
 </body>
