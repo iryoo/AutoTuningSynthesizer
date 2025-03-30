@@ -25,7 +25,7 @@ input[type="range"] {
     margin-top: 5px;
 }
 
-input[type="text"] {
+input[type="number"] {
     width: calc(100% - 10px);
     padding: 5px;
     margin-top: 5px;
@@ -49,12 +49,14 @@ h1 {
     margin-bottom: 20px;
 }
 
-#ratio-display {
+#ratio-display,
+#frequency-display {
     text-align: center;
     margin-top: 20px;
     font-size: 24px;
     font-weight: bold;
 }
+
 
 #piano {
     display: flex;
