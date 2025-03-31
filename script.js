@@ -56,10 +56,20 @@ document.addEventListener("DOMContentLoaded", () => {
         return ratio;
     };
 
+    // 距離を計算する関数
+    const calcDistance = pos => {
+        let distance = 0;
+        for (let i = 0; i < dimensionRatio.length; i++) {
+            distance += Math.pow(dimensionRatio[i] * pos[i], 2);
+        }
+        return distance;
+    };
+
     // 純正律の周波数比を計算する関数
     const calcJustIntonationRatio = midiNote => {
-        const baseOctave = Math.floor((midiNote - baseMidiNote) / 12);
-        const noteOffset = (midiNote - baseMidiNote + 1200) % 12;
+        const semitones = midiNote - baseMidiNote;
+        const baseOctave = Math.floor(semitones / 12);
+        const noteOffset = (semitones + 1200) % 12;
         switch (noteOffset) {
             case 0: // C
                 return [baseOctave, 0, 0]; // 1
@@ -96,29 +106,74 @@ document.addEventListener("DOMContentLoaded", () => {
         return Math.pow(2, semitones / 12);
     };
 
+    // Auto Tuning Temperamentの周波数比を計算する関数
+    const diffToDistance = diff => calcDistance(calcJustIntonationRatio(diff + baseMidiNote));
+    const calcAutoTuningTemperamentRatio = (midiNotes) => {
+        const ratios = {};
+        ratios[baseMidiNote] = 1;
+        let midiNotesToCompare = [baseMidiNote];
+        let remainingMidiNotes = [...midiNotes];
+
+        while (remainingMidiNotes.length > 0) {
+            const result = autoProcess(remainingMidiNotes, midiNotesToCompare);
+            const semitones = Math.abs(result.optimalMidiNote - result.midiNoteToCompare);
+            let ratio = calcRatio(calcJustIntonationRatio(semitones + baseMidiNote));
+            if (result.optimalMidiNote < result.midiNoteToCompare) {
+                ratio = 1 / ratio;
+            }
+            ratios[result.optimalMidiNote] = ratios[result.midiNoteToCompare] * ratio;
+
+            remainingMidiNotes = remainingMidiNotes.filter(note => note !== result.optimalMidiNote);
+            midiNotesToCompare.push(result.optimalMidiNote);
+        }
+
+        return ratios;
+    };
+
+    // AutoProcess関数の実装
+    const autoProcess = (unprocessedMidiNotes, midiNotesToCompare) => {
+        let minDistance = Infinity;
+        let optimalMidiNote = null;
+        let midiNoteToCompare = null;
+
+        for (let i = 0; i < unprocessedMidiNotes.length; i++) {
+            for (let j = 0; j < midiNotesToCompare.length; j++) {
+                const diff = Math.abs(unprocessedMidiNotes[i] - midiNotesToCompare[j]);
+                const distance = diffToDistance(diff);
+
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    optimalMidiNote = unprocessedMidiNotes[i];
+                    midiNoteToCompare = midiNotesToCompare[j];
+                }
+            }
+        }
+
+        return { optimalMidiNote, midiNoteToCompare };
+    };
+
     // MIDIノート番号のマッピング
     const keyMap = {
         "KeyA": 60, // C4
+        "KeyW": 61, // C#4
         "KeyS": 62, // D4
+        "KeyE": 63, // D#4
         "KeyD": 64, // E4
         "KeyF": 65, // F4
+        "KeyT": 66, // F#4
         "KeyG": 67, // G4
+        "KeyY": 68, // G#4
         "KeyH": 69, // A4
+        "KeyU": 70, // A#4
         "KeyJ": 71, // B4
         "KeyK": 72, // C5
+        "KeyO": 73, // C#5
         "KeyL": 74, // D5
+        "KeyP": 75, // D#5
         "Semicolon": 76, // E5
         "Quote": 77, // F5
-        "Backslash": 79, // G5
-
-        "KeyW": 61, // C#4
-        "KeyE": 63, // D#4
-        "KeyT": 66, // F#4
-        "KeyY": 68, // G#4
-        "KeyU": 70, // A#4
-        "KeyO": 73, // C#5
-        "KeyP": 75, // D#5
         "BracketRight": 78, // F#5
+        "Backslash": 79, // G5
     };
 
     // UI 要素
@@ -132,16 +187,20 @@ document.addEventListener("DOMContentLoaded", () => {
     document.addEventListener("keydown", async (event) => {
         if (keyMap[event.code] !== undefined && !activeKeys[event.code]) {
             await Tone.start();
+            activeKeys[event.code] = keyMap[event.code];
             let ratio;
             let frequency;
             if (currentTuning === "just") {
                 ratio = calcRatio(calcJustIntonationRatio(keyMap[event.code]));
             } else if (currentTuning === "equal") {
                 ratio = calcEqualTemperamentRatio(keyMap[event.code]);
+            } else if (currentTuning === "auto") {
+                const activeMidiNotes = Object.values(activeKeys);
+                const ratios = calcAutoTuningTemperamentRatio(activeMidiNotes);
+                ratio = ratios[keyMap[event.code]];
             }
             frequency = baseFreq * ratio;
             synth.triggerAttack(frequency);
-            activeKeys[event.code] = keyMap[event.code];
 
             // UI 更新
             document.querySelector(`.white-key[data-key="${event.code}"]`)?.classList.add("active");
@@ -160,6 +219,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 ratio = calcRatio(calcJustIntonationRatio(keyMap[event.code]));
             } else if (currentTuning === "equal") {
                 ratio = calcEqualTemperamentRatio(keyMap[event.code]);
+            } else if (currentTuning === "auto") {
+                const activeMidiNotes = Object.values(activeKeys);
+                const ratios = calcAutoTuningTemperamentRatio(activeMidiNotes);
+                ratio = ratios[keyMap[event.code]];
             }
             frequency = baseFreq * ratio;
             synth.triggerRelease(frequency);
@@ -175,7 +238,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 周波数比を更新する関数
     function updateRatioDisplay() {
-        if (currentTuning === "equal") {
+        if (currentTuning === "equal" || currentTuning === "auto") {
             ratioDisplay.innerText = "";
             return;
         }
@@ -208,18 +271,28 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 周波数を更新する関数
     function updateFrequencyDisplay() {
-        let frequencies = [];
+        let frequencyData = []; // {keyCode, frequency}
         for (const keyCode in activeKeys) {
             let ratio;
             if (currentTuning === "just") {
                 ratio = calcRatio(calcJustIntonationRatio(keyMap[keyCode]));
             } else if (currentTuning === "equal") {
                 ratio = calcEqualTemperamentRatio(keyMap[keyCode]);
+            } else if (currentTuning === "auto") {
+                const activeMidiNotes = Object.values(activeKeys);
+                const ratios = calcAutoTuningTemperamentRatio(activeMidiNotes);
+                ratio = ratios[keyMap[keyCode]];
             }
             const frequency = Math.round(baseFreq * ratio);
-            frequencies.push(frequency);
+            frequencyData.push({ keyCode: keyCode, frequency: frequency });
         }
-        frequencyDisplay.innerText = frequencies.length > 0 ? frequencies.join(", ") + " Hz" : "";
+        if (frequencyData.length <= 0) {
+            frequencyDisplay.innerText = "";
+            return;
+        }
+        frequencyData.sort((a, b) => a.frequency - b.frequency);
+        const sortedFrequencies = frequencyData.map(item => item.frequency);
+        frequencyDisplay.innerText = sortedFrequencies.join(", ") + " Hz";
     }
 
     const comparePositions = (a, b) => calcRatio(a) - calcRatio(b);
@@ -227,7 +300,4 @@ document.addEventListener("DOMContentLoaded", () => {
     const lcm = (a, b) => (a * b) / gcd(a, b);
     const gcd2 = arr => arr.reduce((a, b) => gcd(a, b));
     const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
-
-    // 初期化時に周波数を更新
-    updateFrequencyDisplay();
 });

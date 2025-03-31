@@ -9,7 +9,7 @@
 </head>
 
 <body>
-    <h1>Auto Tuning Synthesizer (v1.0.2)</h1>
+    <h1>Auto Tuning Synthesizer (v1.0.3)</h1>
     <div class="control-container">
         <label for="volumeSlider">Volume</label>
         <input type="range" id="volumeSlider" min="-60" max="0" step="1" value="-12">
@@ -31,6 +31,7 @@
         <select id="tuningSelect">
             <option value="just">Just Intonation</option>
             <option value="equal">Equal Temperament</option>
+            <option value="auto">Auto Tuning Temperament</option>
         </select>
     </div>
 
@@ -61,7 +62,7 @@
     <div id="ratio-display"></div>
     <div id="frequency-display"></div>
 
-    <script src="https://unpkg.com/tone"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="script.js"></script>
 </body>
 
