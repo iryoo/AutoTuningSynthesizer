@@ -1,20 +1,81 @@
+class CustomPolySynth {
+    constructor(options = {}) {
+        this.voices = new Map();
+        this.maxPolyphony = options.maxPolyphony || 8;
+        this.activeVoices = new Set();
+        this.synthOptions = options.synthOptions || {};
+        this.volume = new Tone.Volume().toDestination();
+    }
+
+    _createVoice() {
+        const synth = new Tone.Synth(this.synthOptions).connect(this.volume);
+        return synth;
+    }
+
+    triggerAttack(midiNote, frequency, time = Tone.now()) {
+        if (!this.voices.has(midiNote)) {
+            if (this.activeVoices.size >= this.maxPolyphony) {
+                const oldestVoice = this.activeVoices.values().next().value;
+                this.triggerRelease(oldestVoice);
+            }
+            const voice = this._createVoice();
+            this.voices.set(midiNote, voice);
+            this.activeVoices.add(midiNote);
+        }
+        const voice = this.voices.get(midiNote);
+        voice.triggerAttack(frequency, time);
+    }
+
+    triggerRelease(midiNote, time = Tone.now()) {
+        if (this.voices.has(midiNote)) {
+            const voice = this.voices.get(midiNote);
+            voice.triggerRelease(time);
+            this.activeVoices.delete(midiNote);
+            this.voices.delete(midiNote);
+        }
+    }
+
+    changeFrequency(midiNote, newFreq, time = 0.01) {
+        const voice = this.voices.get(midiNote);
+        if (voice) {
+            voice.frequency.rampTo(newFreq, time);
+        }
+        return this;
+    }
+
+    set(params) {
+        this.synthOptions = { ...this.synthOptions, ...params };
+        this.voices.forEach((voice) => {
+            voice.set(params);
+        });
+    }
+
+    dispose() {
+        this.voices.forEach((voice) => {
+            voice.dispose();
+        });
+        this.voices.clear();
+        this.activeVoices.clear();
+        this.volume.dispose();
+    }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     // Tone.js のセットアップ
-    const synth = new Tone.PolySynth(Tone.Synth).toDestination();
-    synth.set({ voice: Tone.Synth });
+    const myPolySynth = new CustomPolySynth();
 
     // 音量をセット
     const volumeSlider = document.getElementById("volumeSlider");
-    synth.volume.value = parseFloat(volumeSlider.value);
+    myPolySynth.volume.volume.value = parseFloat(volumeSlider.value);
     volumeSlider.addEventListener("input", (event) => {
-        synth.volume.value = parseFloat(event.target.value);
+        myPolySynth.volume.volume.value = parseFloat(event.target.value);
     });
 
     // 波形のセレクト
     const waveformSelect = document.getElementById("waveformSelect");
-    synth.set({ oscillator: { type: waveformSelect.value } });
+    myPolySynth.set({ oscillator: { type: waveformSelect.value } });
     waveformSelect.addEventListener("input", (event) => {
-        synth.set({ oscillator: { type: event.target.value } });
+        myPolySynth.set({ oscillator: { type: event.target.value } });
     });
 
     // 基準となる音の周波数をセット
@@ -148,7 +209,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
         }
-
         return { optimalMidiNote, midiNoteToCompare };
     };
 
@@ -192,15 +252,26 @@ document.addEventListener("DOMContentLoaded", () => {
             let frequency;
             if (currentTuning === "just") {
                 ratio = calcRatio(calcJustIntonationRatio(keyMap[event.code]));
+                frequency = baseFreq * ratio;
+                myPolySynth.triggerAttack(keyMap[event.code], frequency);
             } else if (currentTuning === "equal") {
                 ratio = calcEqualTemperamentRatio(keyMap[event.code]);
+                frequency = baseFreq * ratio;
+                myPolySynth.triggerAttack(keyMap[event.code], frequency);
             } else if (currentTuning === "auto") {
                 const activeMidiNotes = Object.values(activeKeys);
                 const ratios = calcAutoTuningTemperamentRatio(activeMidiNotes);
                 ratio = ratios[keyMap[event.code]];
+                frequency = baseFreq * ratio;
+
+                for (const keyCode in activeKeys) {
+                    if (myPolySynth.voices.has(keyMap[keyCode])) {
+                        myPolySynth.changeFrequency(keyMap[keyCode], baseFreq * ratios[keyMap[keyCode]]);
+                    } else {
+                        myPolySynth.triggerAttack(keyMap[keyCode], frequency);
+                    }
+                }
             }
-            frequency = baseFreq * ratio;
-            synth.triggerAttack(frequency);
 
             // UI 更新
             document.querySelector(`.white-key[data-key="${event.code}"]`)?.classList.add("active");
@@ -225,7 +296,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 ratio = ratios[keyMap[event.code]];
             }
             frequency = baseFreq * ratio;
-            synth.triggerRelease(frequency);
+            myPolySynth.triggerRelease(keyMap[event.code]);
             delete activeKeys[event.code];
 
             // UI 更新
