@@ -126,8 +126,20 @@ document.addEventListener("DOMContentLoaded", () => {
         return distance;
     };
 
-    // 純正律の周波数比を計算する関数
-    const calcJustIntonationRatio = midiNote => {
+    //MidiNoteの差から距離を求める関数
+    const diffToDistance = diff => calcDistance(calcJustIntonationPosition(diff + baseMidiNote));
+
+    //positionの和を計算する関数
+    const positionSum = (a, b) => {
+        let position = [];
+        for(let i = 0; i < a.length; i++) {
+            position[i] = a[i] + b[i];
+        }
+        return position;
+    }
+
+    // 純正律の音程を座標にする関数
+    const calcJustIntonationPosition = midiNote => {
         const semitones = midiNote - baseMidiNote;
         const baseOctave = Math.floor(semitones / 12);
         const noteOffset = (semitones + 1200) % 12;
@@ -167,34 +179,36 @@ document.addEventListener("DOMContentLoaded", () => {
         return Math.pow(2, semitones / 12);
     };
 
-    // Auto Tuning Temperamentの周波数比を計算する関数
-    const diffToDistance = diff => calcDistance(calcJustIntonationRatio(diff + baseMidiNote));
-    const calcAutoTuningTemperamentRatio = (midiNotes) => {
-        const ratios = {};
-        ratios[baseMidiNote] = 1;
+    // Auto Tuning Temperamentの音程を座標にする関数
+    const calcAutoTuningTemperamentPositions = (midiNotes) => {
+        const positions = {};
+        positions[baseMidiNote] = [0, 0, 0];
         let midiNotesToCompare = [baseMidiNote];
         let remainingMidiNotes = [...midiNotes];
-
+        let isBaseMidiNoteDeleted = false;
         while (remainingMidiNotes.length > 0) {
-            const result = autoProcess(remainingMidiNotes, midiNotesToCompare);
-            const semitones = Math.abs(result.optimalMidiNote - result.midiNoteToCompare);
-            let ratio = calcRatio(calcJustIntonationRatio(semitones + baseMidiNote));
-            if (result.optimalMidiNote < result.midiNoteToCompare) {
-                ratio = 1 / ratio;
+            const result = calcNextMidiNoteToProcess(remainingMidiNotes, midiNotesToCompare);
+            const semitones = result.nextMidiNoteToProcess - result.midiNoteToCompare;
+            let position = calcJustIntonationPosition(semitones + baseMidiNote);
+            positions[result.nextMidiNoteToProcess] = positionSum(positions[result.midiNoteToCompare], position);
+            if(result.nextMidiNoteToProcess !== result.midiNoteToCompare && !isBaseMidiNoteDeleted) {
+                midiNotesToCompare = midiNotesToCompare.filter(note => note !== baseMidiNote);
+                isBaseMidiNoteDeleted = true;
             }
-            ratios[result.optimalMidiNote] = ratios[result.midiNoteToCompare] * ratio;
-
-            remainingMidiNotes = remainingMidiNotes.filter(note => note !== result.optimalMidiNote);
-            midiNotesToCompare.push(result.optimalMidiNote);
+            remainingMidiNotes = remainingMidiNotes.filter(note => note !== result.nextMidiNoteToProcess);
+            midiNotesToCompare.push(result.nextMidiNoteToProcess);
         }
 
-        return ratios;
+        if(!midiNotes.includes(baseMidiNote)) {
+            delete positions[baseMidiNote];
+        }
+        return positions;
     };
 
-    // AutoProcess関数の実装
-    const autoProcess = (unprocessedMidiNotes, midiNotesToCompare) => {
+    // 次に計算するべきmidiNoteを求める関数
+    const calcNextMidiNoteToProcess = (unprocessedMidiNotes, midiNotesToCompare) => {
         let minDistance = Infinity;
-        let optimalMidiNote = null;
+        let nextMidiNoteToProcess = null;
         let midiNoteToCompare = null;
 
         for (let i = 0; i < unprocessedMidiNotes.length; i++) {
@@ -204,12 +218,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 if (distance < minDistance) {
                     minDistance = distance;
-                    optimalMidiNote = unprocessedMidiNotes[i];
+                    nextMidiNoteToProcess = unprocessedMidiNotes[i];
                     midiNoteToCompare = midiNotesToCompare[j];
                 }
             }
         }
-        return { optimalMidiNote, midiNoteToCompare };
+        return { nextMidiNoteToProcess, midiNoteToCompare };
     };
 
     // MIDIノート番号のマッピング
@@ -251,7 +265,7 @@ document.addEventListener("DOMContentLoaded", () => {
             let ratio;
             let frequency;
             if (currentTuning === "just") {
-                ratio = calcRatio(calcJustIntonationRatio(keyMap[event.code]));
+                ratio = calcRatio(calcJustIntonationPosition(keyMap[event.code]));
                 frequency = baseFreq * ratio;
                 myPolySynth.triggerAttack(keyMap[event.code], frequency);
             } else if (currentTuning === "equal") {
@@ -260,7 +274,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 myPolySynth.triggerAttack(keyMap[event.code], frequency);
             } else if (currentTuning === "auto") {
                 const activeMidiNotes = Object.values(activeKeys);
-                const ratios = calcAutoTuningTemperamentRatio(activeMidiNotes);
+                const positions = calcAutoTuningTemperamentPositions(activeMidiNotes);
+
+                let ratios = [];
+                for(const midiNote of activeMidiNotes) {
+                    ratios[midiNote] = calcRatio(positions[midiNote]);
+                }
+                
                 ratio = ratios[keyMap[event.code]];
                 frequency = baseFreq * ratio;
 
@@ -287,12 +307,18 @@ document.addEventListener("DOMContentLoaded", () => {
             let ratio;
             let frequency;
             if (currentTuning === "just") {
-                ratio = calcRatio(calcJustIntonationRatio(keyMap[event.code]));
+                ratio = calcRatio(calcJustIntonationPosition(keyMap[event.code]));
             } else if (currentTuning === "equal") {
                 ratio = calcEqualTemperamentRatio(keyMap[event.code]);
             } else if (currentTuning === "auto") {
                 const activeMidiNotes = Object.values(activeKeys);
-                const ratios = calcAutoTuningTemperamentRatio(activeMidiNotes);
+                const positions = calcAutoTuningTemperamentPositions(activeMidiNotes);
+
+                let ratios = [];
+                for(const midiNote of activeMidiNotes) {
+                    ratios[midiNote] = calcRatio(positions[midiNote]);
+                }
+
                 ratio = ratios[keyMap[event.code]];
             }
             frequency = baseFreq * ratio;
@@ -309,11 +335,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 周波数比を更新する関数
     function updateRatioDisplay() {
-        if (currentTuning === "equal" || currentTuning === "auto") {
+        let positions = [];
+        if (currentTuning === "equal") {
             ratioDisplay.innerText = "";
             return;
+        } else if (currentTuning === "just") {
+            positions = Object.values(activeKeys).map(key => calcJustIntonationPosition(key));
+        } else if (currentTuning === "auto") {
+            const activeMidiNotes = Object.values(activeKeys);
+            positions = Object.values(calcAutoTuningTemperamentPositions(activeMidiNotes));
         }
-        let positions = Object.values(activeKeys).map(key => calcJustIntonationRatio(key));
+
         if (positions.length <= 1) {
             ratioDisplay.innerText = "";
             return;
@@ -346,12 +378,18 @@ document.addEventListener("DOMContentLoaded", () => {
         for (const keyCode in activeKeys) {
             let ratio;
             if (currentTuning === "just") {
-                ratio = calcRatio(calcJustIntonationRatio(keyMap[keyCode]));
+                ratio = calcRatio(calcJustIntonationPosition(keyMap[keyCode]));
             } else if (currentTuning === "equal") {
                 ratio = calcEqualTemperamentRatio(keyMap[keyCode]);
             } else if (currentTuning === "auto") {
                 const activeMidiNotes = Object.values(activeKeys);
-                const ratios = calcAutoTuningTemperamentRatio(activeMidiNotes);
+                const positions = calcAutoTuningTemperamentPositions(activeMidiNotes);
+                
+                let ratios = [];
+                for(const midiNote of activeMidiNotes) {
+                    ratios[midiNote] = calcRatio(positions[midiNote]);
+                }
+
                 ratio = ratios[keyMap[keyCode]];
             }
             const frequency = Math.round(baseFreq * ratio);
