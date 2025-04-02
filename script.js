@@ -29,9 +29,15 @@ class CustomPolySynth {
     triggerRelease(midiNote, time = Tone.now()) {
         if (this.voices.has(midiNote)) {
             const voice = this.voices.get(midiNote);
+            const releaseTime = voice.envelope.release;
             voice.triggerRelease(time);
             this.activeVoices.delete(midiNote);
             this.voices.delete(midiNote);
+
+            Tone.Transport.scheduleOnce((scheduledTime) => {
+                voice.dispose();
+            }, time + releaseTime);
+            Tone.Transport.start();
         }
     }
 
@@ -104,7 +110,7 @@ document.addEventListener("DOMContentLoaded", () => {
         currentTuning = event.target.value;
         activeKeys = {};
         updateRatioDisplay();
-        updateFrequencyDisplay(); // 音律変更時に周波数表示を更新
+        updateFrequencyDisplay();
     });
 
     // 周波数比を計算する関数
@@ -132,7 +138,7 @@ document.addEventListener("DOMContentLoaded", () => {
     //positionの和を計算する関数
     const positionSum = (a, b) => {
         let position = [];
-        for(let i = 0; i < a.length; i++) {
+        for (let i = 0; i < a.length; i++) {
             position[i] = a[i] + b[i];
         }
         return position;
@@ -191,7 +197,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const semitones = result.nextMidiNoteToProcess - result.midiNoteToCompare;
             let position = calcJustIntonationPosition(semitones + baseMidiNote);
             positions[result.nextMidiNoteToProcess] = positionSum(positions[result.midiNoteToCompare], position);
-            if(result.nextMidiNoteToProcess !== result.midiNoteToCompare && !isBaseMidiNoteDeleted) {
+            if (result.nextMidiNoteToProcess !== result.midiNoteToCompare && !isBaseMidiNoteDeleted) {
                 midiNotesToCompare = midiNotesToCompare.filter(note => note !== baseMidiNote);
                 isBaseMidiNoteDeleted = true;
             }
@@ -199,7 +205,7 @@ document.addEventListener("DOMContentLoaded", () => {
             midiNotesToCompare.push(result.nextMidiNoteToProcess);
         }
 
-        if(!midiNotes.includes(baseMidiNote)) {
+        if (!midiNotes.includes(baseMidiNote)) {
             delete positions[baseMidiNote];
         }
         return positions;
@@ -262,76 +268,142 @@ document.addEventListener("DOMContentLoaded", () => {
         if (keyMap[event.code] !== undefined && !activeKeys[event.code]) {
             await Tone.start();
             activeKeys[event.code] = keyMap[event.code];
-            let ratio;
-            let frequency;
-            if (currentTuning === "just") {
-                ratio = calcRatio(calcJustIntonationPosition(keyMap[event.code]));
-                frequency = baseFreq * ratio;
-                myPolySynth.triggerAttack(keyMap[event.code], frequency);
-            } else if (currentTuning === "equal") {
-                ratio = calcEqualTemperamentRatio(keyMap[event.code]);
-                frequency = baseFreq * ratio;
-                myPolySynth.triggerAttack(keyMap[event.code], frequency);
-            } else if (currentTuning === "auto") {
-                const activeMidiNotes = Object.values(activeKeys);
-                const positions = calcAutoTuningTemperamentPositions(activeMidiNotes);
-
-                let ratios = [];
-                for(const midiNote of activeMidiNotes) {
-                    ratios[midiNote] = calcRatio(positions[midiNote]);
-                }
-                
-                ratio = ratios[keyMap[event.code]];
-                frequency = baseFreq * ratio;
-
-                for (const keyCode in activeKeys) {
-                    if (myPolySynth.voices.has(keyMap[keyCode])) {
-                        myPolySynth.changeFrequency(keyMap[keyCode], baseFreq * ratios[keyMap[keyCode]]);
-                    } else {
-                        myPolySynth.triggerAttack(keyMap[keyCode], frequency);
-                    }
-                }
-            }
-
+            handleNoteOn(keyMap[event.code]);
             // UI 更新
             document.querySelector(`.white-key[data-key="${event.code}"]`)?.classList.add("active");
             document.querySelector(`.black-key[data-key="${event.code}"]`)?.classList.add("active");
-            updateRatioDisplay();
-            updateFrequencyDisplay();
         }
     });
 
     // キーを離したときの処理
     document.addEventListener("keyup", (event) => {
         if (activeKeys[event.code] !== undefined) {
-            let ratio;
-            let frequency;
-            if (currentTuning === "just") {
-                ratio = calcRatio(calcJustIntonationPosition(keyMap[event.code]));
-            } else if (currentTuning === "equal") {
-                ratio = calcEqualTemperamentRatio(keyMap[event.code]);
-            } else if (currentTuning === "auto") {
-                const activeMidiNotes = Object.values(activeKeys);
-                const positions = calcAutoTuningTemperamentPositions(activeMidiNotes);
-
-                let ratios = [];
-                for(const midiNote of activeMidiNotes) {
-                    ratios[midiNote] = calcRatio(positions[midiNote]);
-                }
-
-                ratio = ratios[keyMap[event.code]];
-            }
-            frequency = baseFreq * ratio;
-            myPolySynth.triggerRelease(keyMap[event.code]);
+            handleNoteOff(keyMap[event.code]);
             delete activeKeys[event.code];
-
             // UI 更新
             document.querySelector(`.white-key[data-key="${event.code}"]`)?.classList.remove("active");
             document.querySelector(`.black-key[data-key="${event.code}"]`)?.classList.remove("active");
-            updateRatioDisplay();
-            updateFrequencyDisplay();
         }
     });
+
+    // MIDI関連のグローバル変数
+    let midi, inputs, outputs;
+    let activeMidiNotes = {}; // 押されているMIDIノートを記録
+
+    // Web MIDI APIの初期化
+    function initMIDI() {
+        if (navigator.requestMIDIAccess) {
+            navigator.requestMIDIAccess({ sysex: false }).then(onMIDISuccess, onMIDIFailure);
+        } else {
+            console.log('WebMIDI is not supported in this browser.');
+        }
+    }
+
+    function onMIDISuccess(midiAccess) {
+        console.log('MIDI Access Granted!');
+        midi = midiAccess;
+        inputs = midi.inputs.values();
+        outputs = midi.outputs.values();
+
+        for (let input = inputs.next(); input && !input.done; input = inputs.next()) {
+            input.value.onmidimessage = onMIDIMessage;
+        }
+
+        midi.onstatechange = onStateChange;
+    }
+
+    function onMIDIFailure(error) {
+        console.error('Could not access MIDI devices:', error);
+    }
+
+    function onStateChange(event) {
+        console.log('MIDI state change:', event);
+        inputs = midi.inputs.values();
+        for (let input = inputs.next(); input && !input.done; input = inputs.next()) {
+            input.value.onmidimessage = onMIDIMessage;
+        }
+    }
+
+    function onMIDIMessage(message) {
+        const data = message.data;
+        const command = data[0] >> 4;
+        const channel = data[0] & 0xf;
+        const type = data[0] & 0xf0;
+        const note = data[1];
+        const velocity = data[2];
+
+        switch (type) {
+            case 144: // noteOn
+                midiNoteOn(note, velocity);
+                break;
+            case 128: // noteOff
+                midiNoteOff(note, velocity);
+                break;
+        }
+    }
+
+    function midiNoteOn(note, velocity) {
+        if (velocity === 0) {
+            midiNoteOff(note, velocity);
+            return;
+        }
+        if (!activeMidiNotes[note]) {
+            activeMidiNotes[note] = true;
+            handleNoteOn(note);
+        }
+    }
+
+    function midiNoteOff(note, velocity) {
+        if (activeMidiNotes[note]) {
+            activeMidiNotes[note] = false;
+            handleNoteOff(note);
+        }
+    }
+
+    // MIDIの初期化
+    initMIDI();
+
+    // ノートオンとノートオフの処理を共通化
+    const handleNoteOn = (midiNote) => {
+        let ratio;
+        let frequency;
+        if (currentTuning === "just") {
+            ratio = calcRatio(calcJustIntonationPosition(midiNote));
+            frequency = baseFreq * ratio;
+            myPolySynth.triggerAttack(midiNote, frequency);
+        } else if (currentTuning === "equal") {
+            ratio = calcEqualTemperamentRatio(midiNote);
+            frequency = baseFreq * ratio;
+            myPolySynth.triggerAttack(midiNote, frequency);
+        } else if (currentTuning === "auto") {
+            const activeNotes = Object.values(activeKeys).concat(Object.keys(activeMidiNotes).filter(key => activeMidiNotes[key]).map(Number));
+            const positions = calcAutoTuningTemperamentPositions(activeNotes);
+
+            let ratios = [];
+            for (const note of activeNotes) {
+                ratios[note] = calcRatio(positions[note]);
+            }
+
+            ratio = ratios[midiNote];
+            frequency = baseFreq * ratio;
+
+            for (const note of activeNotes) {
+                if (myPolySynth.voices.has(note)) {
+                    myPolySynth.changeFrequency(note, baseFreq * ratios[note]);
+                } else {
+                    myPolySynth.triggerAttack(note, baseFreq * ratios[note]);
+                }
+            }
+        }
+        updateRatioDisplay();
+        updateFrequencyDisplay();
+    };
+
+    const handleNoteOff = (midiNote) => {
+        myPolySynth.triggerRelease(midiNote);
+        updateRatioDisplay();
+        updateFrequencyDisplay();
+    };
 
     // 周波数比を更新する関数
     function updateRatioDisplay() {
@@ -339,11 +411,14 @@ document.addEventListener("DOMContentLoaded", () => {
         if (currentTuning === "equal") {
             ratioDisplay.innerText = "";
             return;
-        } else if (currentTuning === "just") {
-            positions = Object.values(activeKeys).map(key => calcJustIntonationPosition(key));
+        }
+
+        const activeNotes = Object.values(activeKeys).concat(Object.keys(activeMidiNotes).filter(key => activeMidiNotes[key]).map(Number));
+
+        if (currentTuning === "just") {
+            positions = Object.values(activeNotes).map(key => calcJustIntonationPosition(key));
         } else if (currentTuning === "auto") {
-            const activeMidiNotes = Object.values(activeKeys);
-            positions = Object.values(calcAutoTuningTemperamentPositions(activeMidiNotes));
+            positions = Object.values(calcAutoTuningTemperamentPositions(activeNotes));
         }
 
         if (positions.length <= 1) {
@@ -375,25 +450,25 @@ document.addEventListener("DOMContentLoaded", () => {
     // 周波数を更新する関数
     function updateFrequencyDisplay() {
         let frequencyData = []; // {keyCode, frequency}
-        for (const keyCode in activeKeys) {
+        const activeNotes = Object.values(activeKeys).concat(Object.keys(activeMidiNotes).filter(key => activeMidiNotes[key]).map(Number));
+        for (const midiNote of activeNotes) {
             let ratio;
             if (currentTuning === "just") {
-                ratio = calcRatio(calcJustIntonationPosition(keyMap[keyCode]));
+                ratio = calcRatio(calcJustIntonationPosition(midiNote));
             } else if (currentTuning === "equal") {
-                ratio = calcEqualTemperamentRatio(keyMap[keyCode]);
+                ratio = calcEqualTemperamentRatio(midiNote);
             } else if (currentTuning === "auto") {
-                const activeMidiNotes = Object.values(activeKeys);
-                const positions = calcAutoTuningTemperamentPositions(activeMidiNotes);
-                
+                const positions = calcAutoTuningTemperamentPositions(activeNotes);
+
                 let ratios = [];
-                for(const midiNote of activeMidiNotes) {
-                    ratios[midiNote] = calcRatio(positions[midiNote]);
+                for (const note of activeNotes) {
+                    ratios[note] = calcRatio(positions[note]);
                 }
 
-                ratio = ratios[keyMap[keyCode]];
+                ratio = ratios[midiNote];
             }
             const frequency = Math.round(baseFreq * ratio);
-            frequencyData.push({ keyCode: keyCode, frequency: frequency });
+            frequencyData.push({ midiNote: midiNote, frequency: frequency });
         }
         if (frequencyData.length <= 0) {
             frequencyDisplay.innerText = "";
