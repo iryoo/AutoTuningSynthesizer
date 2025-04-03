@@ -1,71 +1,3 @@
-class CustomPolySynth {
-    constructor(options = {}) {
-        this.voices = new Map();
-        this.maxPolyphony = options.maxPolyphony || 8;
-        this.activeVoices = new Set();
-        this.synthOptions = options.synthOptions || {};
-        this.volume = new Tone.Volume().toDestination();
-    }
-
-    _createVoice() {
-        const synth = new Tone.Synth(this.synthOptions).connect(this.volume);
-        return synth;
-    }
-
-    triggerAttack(midiNote, frequency, time = Tone.now()) {
-        if (!this.voices.has(midiNote)) {
-            if (this.activeVoices.size >= this.maxPolyphony) {
-                const oldestVoice = this.activeVoices.values().next().value;
-                this.triggerRelease(oldestVoice);
-            }
-            const voice = this._createVoice();
-            this.voices.set(midiNote, voice);
-            this.activeVoices.add(midiNote);
-        }
-        const voice = this.voices.get(midiNote);
-        voice.triggerAttack(frequency, time);
-    }
-
-    triggerRelease(midiNote, time = Tone.now()) {
-        if (this.voices.has(midiNote)) {
-            const voice = this.voices.get(midiNote);
-            const releaseTime = voice.envelope.release;
-            voice.triggerRelease(time);
-            this.activeVoices.delete(midiNote);
-            this.voices.delete(midiNote);
-
-            Tone.Transport.scheduleOnce((scheduledTime) => {
-                voice.dispose();
-            }, time + releaseTime);
-            Tone.Transport.start();
-        }
-    }
-
-    changeFrequency(midiNote, newFreq, time = 0.01) {
-        const voice = this.voices.get(midiNote);
-        if (voice) {
-            voice.frequency.rampTo(newFreq, time);
-        }
-        return this;
-    }
-
-    set(params) {
-        this.synthOptions = { ...this.synthOptions, ...params };
-        this.voices.forEach((voice) => {
-            voice.set(params);
-        });
-    }
-
-    dispose() {
-        this.voices.forEach((voice) => {
-            voice.dispose();
-        });
-        this.voices.clear();
-        this.activeVoices.clear();
-        this.volume.dispose();
-    }
-}
-
 document.addEventListener("DOMContentLoaded", () => {
     // Tone.js のセットアップ
     const myPolySynth = new CustomPolySynth();
@@ -113,6 +45,45 @@ document.addEventListener("DOMContentLoaded", () => {
         updateFrequencyDisplay();
     });
 
+    // ADSR Controls
+    const attackSlider = document.getElementById("attackSlider");
+    const decaySlider = document.getElementById("decaySlider");
+    const sustainSlider = document.getElementById("sustainSlider");
+    const releaseSlider = document.getElementById("releaseSlider");
+
+    const setADSR = (a, d, s, r) => {
+        myPolySynth.set({
+            envelope: {
+                attack: parseFloat(a),
+                decay: parseFloat(d),
+                sustain: parseFloat(s),
+                release: parseFloat(r),
+            },
+        });
+    }
+
+    setADSR(parseFloat(attackSlider.value), parseFloat(decaySlider.value), parseFloat(sustainSlider.value), parseFloat(releaseSlider.value));
+
+    attackSlider.addEventListener("input", (event) => {
+        const currentEnvelope = myPolySynth.synthOptions.envelope;
+        setADSR(parseFloat(event.target.value), currentEnvelope.decay, currentEnvelope.sustain, currentEnvelope.release);
+    });
+
+    decaySlider.addEventListener("input", (event) => {
+        const currentEnvelope = myPolySynth.synthOptions.envelope;
+        setADSR(currentEnvelope.attack, parseFloat(event.target.value), currentEnvelope.sustain, currentEnvelope.release);
+    });
+
+    sustainSlider.addEventListener("input", (event) => {
+        const currentEnvelope = myPolySynth.synthOptions.envelope;
+        setADSR(currentEnvelope.attack, currentEnvelope.decay, parseFloat(event.target.value), currentEnvelope.release);
+    });
+
+    releaseSlider.addEventListener("input", (event) => {
+        const currentEnvelope = myPolySynth.synthOptions.envelope;
+        setADSR(currentEnvelope.attack, currentEnvelope.decay, currentEnvelope.sustain, parseFloat(event.target.value));
+    });
+    
     // 周波数比を計算する関数
     const dimensionRatio = [2, 3, 5];
     const calcRatio = pos => {
