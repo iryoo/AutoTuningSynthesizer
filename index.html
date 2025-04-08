@@ -9,23 +9,26 @@
 </head>
 
 <body>
-    <h1>Auto Tuning Synthesizer (v1.1.4)</h1>
-    <details class="control-container">
+    <h1>Auto Tuning Synthesizer (ver1.1.5)</h1>
+    <details class="control-container" open>
         <summary id="controls">Controls</summary>
         <label for="volumeSlider">Volume</label>
         <input type="range" id="volumeSlider" min="-60" max="0" step="1" value="-12">
 
         <label for="baseFreqInput">Base Frequency (Hz)</label>
-        <input type="number" value="261.63" id="baseFreqInput">
+        <input type="number" value="261.63" id="baseFreqInput" step="0.01">
 
         <label for="baseMidiNoteInput">MIDI note for base frequency</label>
-        <input type="number" value="60" id="baseMidiNoteInput">
+        <input type="number" value="60" id="baseMidiNoteInput" step="1">
 
         <label for="waveformSelect">Waveform</label>
         <select id="waveformSelect">
             <option value="sine">sine</option>
             <option value="square">square</option>
             <option value="sawtooth">sawtooth</option>
+            <option value="triangle">triangle</option>
+            <option value="pwm">pwm</option>
+            <option value="pulse">pulse</option>
         </select>
 
         <label for="tuningSelect">Temperament</label>
@@ -35,18 +38,18 @@
             <option value="equal">Equal Temperament</option>
         </select>
 
-        <details>
+        <details open>
             <summary id="ADSR-controls">ADSR</summary>
 
             <label for="attackSlider">Attack</label>
             <input type="range" id="attackSlider" min="0.001" max="1" step="0.001" value="0.005">
-    
+
             <label for="decaySlider">Decay</label>
             <input type="range" id="decaySlider" min="0.001" max="1" step="0.001" value="0.1">
-    
+
             <label for="sustainSlider">Sustain</label>
             <input type="range" id="sustainSlider" min="0" max="1" step="0.01" value="0.5">
-    
+
             <label for="releaseSlider">Release</label>
             <input type="range" id="releaseSlider" min="0.001" max="3" step="0.001" value="1">
         </details>
@@ -73,15 +76,13 @@
         <button class="white-key" data-key="Quote">:</button>
         <button class="black-key" data-key="BracketRight">[</button>
         <button class="white-key" data-key="Backslash">]</button>
-
     </div>
 
     <div id="ratio-display"></div>
     <div id="frequency-display"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
-    <script src="CustomPolySynth.js"></script>
-    <script src="script.js"></script>
+    <script type="module" src="main.js"></script>
 </body>
 
 </html>
