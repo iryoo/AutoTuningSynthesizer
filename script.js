@@ -120,34 +120,48 @@ document.addEventListener("DOMContentLoaded", () => {
         const semitones = midiNote - baseMidiNote;
         const baseOctave = Math.floor(semitones / 12);
         const noteOffset = (semitones + 1200) % 12;
+        let position;
         switch (noteOffset) {
             case 0: // C
-                return [baseOctave, 0, 0]; // 1
+                position = [0, 0, 0]; // 1
+                break;
             case 1: // C#
-                return [baseOctave + 4, -1, -1]; // 16/15
+                position = [4, -1, -1]; // 16/15
+                break;
             case 2: // D
-                return [baseOctave - 3, 2, 0]; // 9/8
+                position = [- 3, 2, 0]; // 9/8
+                break;
             case 3: // D#
-                return [baseOctave + 1, 1, -1]; // 6/5
+                position = [1, 1, -1]; // 6/5
+                break;
             case 4: // E
-                return [baseOctave - 2, 0, 1]; // 5/4
+                position = [-2, 0, 1]; // 5/4
+                break;
             case 5: // F
-                return [baseOctave + 2, -1, 0]; // 4/3
+                position = [2, -1, 0]; // 4/3
+                break;
             case 6: // F#
-                return [baseOctave + 6, -2, -1]; // 64/45
+                position = [6, -2, -1]; // 64/45
+                break;
             case 7: // G
-                return [baseOctave - 1, 1, 0]; // 3/2
+                position = [-1, 1, 0]; // 3/2
+                break;
             case 8: // G#
-                return [baseOctave + 3, 0, -1]; // 8/5
+                position = [3, 0, -1]; // 8/5
+                break;
             case 9: // A
-                return [baseOctave, -1, 1]; // 5/3
+                position = [0, -1, 1]; // 5/3
+                break;
             case 10: // A#
-                return [baseOctave + 4, -2, 0]; // 16/9
+                position = [4, -2, 0]; // 16/9
+                break;
             case 11: // B
-                return [baseOctave - 3, 1, 1]; // 15/8
+                position = [-3, 1, 1]; // 15/8
+                break;
             default:
                 return [0, 0, 0];
         }
+        return positionSum([baseOctave, 0, 0], position);
     };
 
     // 平均律の周波数比を計算する関数
@@ -249,8 +263,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // キーを離したときの処理
     document.addEventListener("keyup", (event) => {
         if (activeKeys[event.code] !== undefined) {
-            handleNoteOff(keyMap[event.code]);
             delete activeKeys[event.code];
+            handleNoteOff(keyMap[event.code]);
             // UI 更新
             document.querySelector(`.white-key[data-key="${event.code}"]`)?.classList.remove("active");
             document.querySelector(`.black-key[data-key="${event.code}"]`)?.classList.remove("active");
